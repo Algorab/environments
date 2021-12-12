@@ -13,10 +13,13 @@ pub struct HandlerState {
     user_func: Mutex<Option<HandlerFunc>>,
 }
 
+
 impl HandlerState {
     pub fn new() -> Self{
         Self {
-            user_func: Mutex::new(None),
+            user_func: Mutex::new(Some(|req|{
+                HttpResponse::Ok().body("Hello")
+            })),
         }
     }
 }
@@ -34,53 +37,11 @@ struct FunctionLoadRequest {
     url: String
 }
 
-const CODE_PATH: &str = "/userfunc/user";
-
-#[get("/healthz")]
-pub async fn readiness_probe_handler() -> impl Responder {
-    HttpResponse::Ok()
-}
-
-#[get("/specialize")]
-pub async fn specialize_handler(handler_state: web::Data<HandlerState>) -> impl Responder {
-    let user_func = *handler_state.user_func.lock().unwrap();
-
-    match user_func {
-        Some(_) => HttpResponse::BadRequest().body("Not a generic container"),
-        None => {
-            let path = Path::new(CODE_PATH);
-            if !path.exists() {
-                error!("code path ({}) does not exist", CODE_PATH);
-                return HttpResponse::InternalServerError().body(format!("{} not found", CODE_PATH))
-            }
-            info!("specializing ...");
-            let user_func = load_plugin(&path, "Handler");
-            match user_func {
-                Some(func) => {
-                    *handler_state.user_func.lock().unwrap() = Some(func);
-                    HttpResponse::new(StatusCode::OK)
-                },
-                None => {
-                    error!("No user_func found");
-                    HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
-                }
-            }
+//const CODE_PATH: &str = "/userfunc/user";
+pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
-        },
-
-    }
-}
-
-#[get("/")]
-pub async fn user_handler() -> HttpResponse {
-    HttpResponse::Ok().body("user_handler")
-    //HttpResponse::new(StatusCode::OK)
-
-}
-
-
-fn load_plugin(code_path: &Path, entry_point:&str) -> Option<HandlerFunc>{
+pub fn load_plugin(code_path: &Path, entry_point:&str, req: HttpRequest) -> Option<HandlerFunc>{
     if code_path.is_dir() {
         //Todo: 1. swtich from Option to Result
         //Todo: 2. use a reference for OsString
@@ -124,6 +85,11 @@ fn load_plugin(code_path: &Path, entry_point:&str) -> Option<HandlerFunc>{
                unsafe {
                    let lib = Library::new(plugin).unwrap();
                    let symbol: Symbol<HandlerFunc> = lib.get(entry_point.as_bytes()).unwrap();
+                   unsafe {
+                       let r = symbol(req);
+                       println!("body: {:?}", r.body().as_ref());
+                   }
+
                    Some(*symbol)
                }
            },
