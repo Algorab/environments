@@ -3,7 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 use actix_web::{HttpRequest, HttpResponse, get, Responder};
 use actix_web::http::StatusCode;
 use libloading::{Library, Symbol};
-use crate::HandlerFunc;
+use crate::{HandlerFunc, panic};
 use crate::server::{CODE_PATH, load_plugin};
 
 
@@ -11,15 +11,7 @@ pub struct HandlerState {
     pub lib: Mutex<Option<Library>>,
 }
 
-
 impl HandlerState {
-    // pub fn new() -> Self{
-    //     Self {
-    //         user_func: Mutex::new(Some(|req|{
-    //             HttpResponse::Ok().body("Hello")
-    //         })),
-    //     }
-    // }
 
     pub fn new() -> Self{
         Self {
@@ -33,14 +25,21 @@ impl HandlerState {
 #[get("/")]
 pub async fn user_handler(data: actix_web::web::Data<HandlerState>, req: HttpRequest) -> HttpResponse {
 
-    let mut lib = data.lib.lock().unwrap(); // <- get counter's MutexGuard
+    let lib = data.lib.lock().unwrap(); // <- get counter's MutexGuard
 
     unsafe {
-        let o = lib.as_ref().unwrap();
-        let symbol: Symbol<HandlerFunc> = o.get(b"handler").unwrap();
-        let r = symbol(req);
-        println!("body: {:?}", r.body().as_ref());
-        r
+
+        let result = panic::catch_unwind_silent(||{
+            let o = lib.as_ref().unwrap();
+            //Todo: remove the hardcoded handler here!
+            o.get::<HandlerFunc>(b"handler").unwrap()
+        });
+
+        match result {
+            Ok(symbol) => symbol(req),
+            //Todo: Retrun what fission here expect.
+            Err(e) => HttpResponse::InternalServerError().body("handler not available")
+        }
     }
 
 }

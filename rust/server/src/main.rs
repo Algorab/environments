@@ -1,5 +1,6 @@
 mod server;
 mod requst_handler;
+mod panic;
 
 #[macro_use] extern crate serde;
 
