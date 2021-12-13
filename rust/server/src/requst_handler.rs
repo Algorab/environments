@@ -9,6 +9,7 @@ use crate::server::{CODE_PATH, load_plugin};
 
 pub struct HandlerState {
     pub lib: Mutex<Option<Library>>,
+    pub entry_point: Mutex<String>,
 }
 
 impl HandlerState {
@@ -16,9 +17,9 @@ impl HandlerState {
     pub fn new() -> Self{
         Self {
             lib: Mutex::new(None),
+            entry_point: Mutex::new(String::from(""))
         }
     }
-
 
 }
 
@@ -26,19 +27,20 @@ impl HandlerState {
 pub async fn user_handler(data: actix_web::web::Data<HandlerState>, req: HttpRequest) -> HttpResponse {
 
     let lib = data.lib.lock().unwrap(); // <- get counter's MutexGuard
+    let entry_point = data.entry_point.lock().unwrap();
 
     unsafe {
 
+        println!("entrypoint: {}", entry_point);
         let result = panic::catch_unwind_silent(||{
             let o = lib.as_ref().unwrap();
-            //Todo: remove the hardcoded handler here!
-            o.get::<HandlerFunc>(b"handler").unwrap()
+            o.get::<HandlerFunc>(&*entry_point.as_bytes()).unwrap()
         });
 
         match result {
             Ok(symbol) => symbol(req),
-            //Todo: Retrun what fission here expect.
-            Err(e) => HttpResponse::InternalServerError().body("handler not available")
+            //Todo: Return what fission here expect.
+            Err(e) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
         }
     }
 
@@ -49,32 +51,24 @@ pub async fn readiness_probe_handler() -> impl Responder {
 }
 
 #[get("/specialize")]
-pub async fn specialize_handler(handler_state: actix_web::web::Data<HandlerState>, req: HttpRequest) -> impl Responder {
-    let mut app_user_func: MutexGuard<Option<Library>> = handler_state.lib.lock().unwrap();
+pub async fn specialize_handler(handler_state: actix_web::web::Data<HandlerState>) -> impl Responder {
 
-    match *app_user_func {
-        Some(_) => HttpResponse::BadRequest().body("Not a generic container"),
+    let mut user_func_lib: MutexGuard<Option<Library>> = handler_state.lib.lock().unwrap();
+
+    match *user_func_lib {
+        Some(_) => {
+            drop(user_func_lib);
+            HttpResponse::BadRequest().body("Not a generic container")
+        },
         None => {
+            drop(user_func_lib);
             let path = Path::new(CODE_PATH);
             if !path.exists() {
                 error!("code path ({}) does not exist", CODE_PATH);
                 return HttpResponse::InternalServerError().body(format!("{} not found", CODE_PATH))
             }
             info!("specializing ...");
-            load_plugin(&path, "handler", &mut app_user_func, req);
-            // match loaded_lib {
-            //     Some(lib) => {
-            //         *app_user_func = Some(lib);
-            //         HttpResponse::Ok().body("Plugin Loaded")
-            //
-            //
-            //     },
-            //     None => {
-            //         error!("No user_func found");
-            //         HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
-            //     }
-            // }
-
+            load_plugin(&path, "handler", &handler_state);
             HttpResponse::Ok().body("Plugin Loaded")
 
 
