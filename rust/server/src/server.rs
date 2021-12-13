@@ -1,28 +1,15 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
-use std::sync::Mutex;
+use std::rc::Rc;
+use std::sync::{Mutex, MutexGuard};
 
-use actix_web::{get, HttpRequest, HttpResponse, Responder, web};
+use actix_web::{get, HttpRequest, HttpResponse, Responder};
 use actix_web::http::StatusCode;
 use libloading::{Library, Symbol};
 
 use log::{error, info};
-
-pub struct HandlerState {
-    user_func: Mutex<Option<HandlerFunc>>,
-}
-
-
-impl HandlerState {
-    pub fn new() -> Self{
-        Self {
-            user_func: Mutex::new(Some(|req|{
-                HttpResponse::Ok().body("Hello")
-            })),
-        }
-    }
-}
+use crate::HandlerState;
 
 pub type HandlerFunc = unsafe fn(HttpRequest) -> HttpResponse;
 
@@ -41,7 +28,7 @@ struct FunctionLoadRequest {
 pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
-pub fn load_plugin(code_path: &Path, entry_point:&str, req: HttpRequest) -> Option<HandlerFunc>{
+pub fn load_plugin(code_path: &Path, entry_point:&str,  app_lib: &mut MutexGuard<Option<Library>>, req: HttpRequest) {
     if code_path.is_dir() {
         //Todo: 1. swtich from Option to Result
         //Todo: 2. use a reference for OsString
@@ -83,23 +70,25 @@ pub fn load_plugin(code_path: &Path, entry_point:&str, req: HttpRequest) -> Opti
            Some(plugin) => {
                info!("Loading  plugin from {}", plugin.to_str().unwrap());
                unsafe {
-                   let lib = Library::new(plugin).unwrap();
-                   let symbol: Symbol<HandlerFunc> = lib.get(entry_point.as_bytes()).unwrap();
-                   unsafe {
-                       let r = symbol(req);
-                       println!("body: {:?}", r.body().as_ref());
-                   }
 
-                   Some(*symbol)
+                   let lib = Library::new(plugin).unwrap();
+
+                   **app_lib = Some(lib);
+                   // let symbol: Symbol<HandlerFunc> = lib.get(entry_point.as_bytes()).unwrap();
+                   // unsafe {
+                   //     let r = symbol(req);
+                   //     println!("body: {:?}", r.body().as_ref());
+                   // }
+                   //Some(&lib);
                }
            },
            None => {
-               None
+               None::<()>;
            }
        }
 
     } else {
         error!("error checking plugin path: {}", code_path.to_str().unwrap());
-        None
+        None::<()>;
     }
 }
