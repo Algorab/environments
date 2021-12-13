@@ -8,7 +8,7 @@ use crate::server::{CODE_PATH, load_plugin};
 
 
 pub struct HandlerState {
-    pub user_func: Mutex<Option<Library>>,
+    pub lib: Mutex<Option<Library>>,
 }
 
 
@@ -23,7 +23,7 @@ impl HandlerState {
 
     pub fn new() -> Self{
         Self {
-            user_func: Mutex::new(None),
+            lib: Mutex::new(None),
         }
     }
 
@@ -33,8 +33,7 @@ impl HandlerState {
 #[get("/")]
 pub async fn user_handler(data: actix_web::web::Data<HandlerState>, req: HttpRequest) -> HttpResponse {
 
-    let mut lib = data.user_func.lock().unwrap(); // <- get counter's MutexGuard
-
+    let mut lib = data.lib.lock().unwrap(); // <- get counter's MutexGuard
 
     unsafe {
         let o = lib.as_ref().unwrap();
@@ -44,22 +43,6 @@ pub async fn user_handler(data: actix_web::web::Data<HandlerState>, req: HttpReq
         r
     }
 
-
-
-    // let func = handler.unwrap();
-    //
-    // let resp = unsafe {
-    //     let resp = func(req);
-    //     resp
-    // };
-
-    //let resp = HttpResponse::Ok().body("Hello");
-
-    // *handler = Some(|req|{
-    //     HttpResponse::Ok().body("fdsfsdlkfjdslafj")
-    // }); // <- access counter inside MutexGuard
-
-    //resp
 }
 #[get("/healthz")]
 pub async fn readiness_probe_handler() -> impl Responder {
@@ -68,7 +51,7 @@ pub async fn readiness_probe_handler() -> impl Responder {
 
 #[get("/specialize")]
 pub async fn specialize_handler(handler_state: actix_web::web::Data<HandlerState>, req: HttpRequest) -> impl Responder {
-    let mut app_user_func: MutexGuard<Option<Library>> = handler_state.user_func.lock().unwrap();
+    let mut app_user_func: MutexGuard<Option<Library>> = handler_state.lib.lock().unwrap();
 
     match *app_user_func {
         Some(_) => HttpResponse::BadRequest().body("Not a generic container"),
