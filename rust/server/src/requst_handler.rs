@@ -59,7 +59,7 @@ pub async fn readiness_probe_handler() -> impl Responder {
 }
 
 #[get("/specialize")]
-pub async fn specialize_handler<'handler_state>(data: actix_web::web::Data<Mutex<HandlerState>>) -> impl Responder {
+pub async fn specialize_handler(data: actix_web::web::Data<Mutex<HandlerState>>) -> impl Responder {
 
     let handler_state= data.lock().unwrap();
     let mut user_func_lib = handler_state.lib.as_ref();
@@ -84,25 +84,4 @@ pub async fn specialize_handler<'handler_state>(data: actix_web::web::Data<Mutex
 
     }
 }
-
-
-// #[get("foo")]
-// async fn foo(data: web::Data<HandlerState>, req: HttpRequest) -> HttpResponse {
-//     let mut counter = data.user_func.lock().unwrap(); // <- get counter's MutexGuard
-//
-//     let func = counter.unwrap();
-//
-//     let resp = unsafe {
-//         let resp = func(req);
-//         resp
-//     };
-//
-//     *counter = Some(|req|{
-//         HttpResponse::Ok().body("fdsfsdlkfjdslafj")
-//     }); // <- access counter inside MutexGuard
-//
-//     resp
-//     //format!("Request number: {:?}", *resp.body().as_ref().unwrap()) // <- response with count
-// }
-
 
