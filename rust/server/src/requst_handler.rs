@@ -4,11 +4,11 @@ use actix_web::{HttpRequest, HttpResponse, get, post, Responder, web};
 use actix_web::body::Body;
 use actix_web::guard::Guard;
 use actix_web::http::StatusCode;
-use actix_web::web::Bytes;
+use actix_web::web::{Bytes, Data};
 use libloading::{Library, Symbol};
 use serde_json::Value;
 use crate::{HandlerFunc, panic, server};
-use crate::server::{CODE_PATH, FunctionLoadRequest, load_plugin};
+use crate::server::{CODE_PATH};
 
 pub struct HandlerState {
     pub lib: Option<Library>,
@@ -24,6 +24,18 @@ impl HandlerState {
         }
     }
 
+}
+
+#[derive(Deserialize, Debug)]
+pub struct FunctionLoadRequest {
+    #[serde(alias = "filepath")]
+    pub file_path: String,
+
+    #[serde(alias = "functionName")]
+    pub function_name: String,
+
+    //currently not use. I see this in the server.go from in the go env
+    pub url: String,
 }
 
 #[get("/")]
@@ -62,62 +74,11 @@ pub async fn readiness_probe_handler() -> impl Responder {
 
 #[get("/specialize")]
 pub async fn specialize_handler(data: actix_web::web::Data<Mutex<HandlerState>>) -> impl Responder {
-
-    let handler_state= data.lock().unwrap();
-    let mut user_func_lib = handler_state.lib.as_ref();
-
-    match user_func_lib {
-        Some(_) => {
-            drop(handler_state);
-            HttpResponse::BadRequest().body("Not a generic container")
-        },
-        None => {
-            drop(handler_state);
-            let path = Path::new(CODE_PATH);
-            if !path.exists() {
-                error!("code path ({}) does not exist", CODE_PATH);
-                return HttpResponse::InternalServerError().body(format!("{} not found", CODE_PATH))
-            }
-            info!("specializing ...");
-            load_plugin(&path, "handler", data);
-            HttpResponse::Ok().body("Plugin Loaded")
-
-        },
-
-    }
+    server::specializer(data, CODE_PATH, "handler")
 }
 
 #[get("/v2/specialize")]
 pub async fn specialize_handler_v2(data: actix_web::web::Data<Mutex<HandlerState>>, function_load_request: web::Json<FunctionLoadRequest>) -> impl Responder {
-
-    let handler_state= data.lock().unwrap();
-    let mut user_func_lib = handler_state.lib.as_ref();
-
-    match user_func_lib {
-        Some(_) => {
-            drop(handler_state);
-            HttpResponse::BadRequest().body("Not a generic container")
-        },
-        None => {
-            drop(handler_state);
-            let path = Path::new(&function_load_request.file_path);
-            if !path.exists() {
-                error!("code path ({}) does not exist", CODE_PATH);
-                return HttpResponse::InternalServerError()
-                    .body(format!("{} not found", CODE_PATH))
-            }
-            info!("specializing ...");
-
-            load_plugin(
-                &path,
-                function_load_request.function_name.as_str(),
-                data
-            );
-
-            HttpResponse::Ok().body("Plugin Loaded")
-
-        },
-
-    }
+    server::specializer(data, function_load_request.file_path.as_str(), function_load_request.function_name.as_str())
 }
 

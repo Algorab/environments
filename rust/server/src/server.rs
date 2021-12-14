@@ -6,6 +6,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web};
 use actix_web::http::StatusCode;
+use actix_web::web::Data;
 use libloading::{Library, Symbol};
 use log::{info};
 
@@ -13,25 +14,35 @@ use crate::HandlerState;
 
 pub type HandlerFunc = unsafe fn(HttpRequest) -> HttpResponse;
 
-//Todo: put FunctionLoadRequest to the request_handlers
-#[derive(Deserialize, Debug)]
-pub struct FunctionLoadRequest {
-    #[serde(alias = "filepath")]
-    pub file_path: String,
-
-    #[serde(alias = "functionName")]
-    pub function_name: String,
-
-    //currently not use. I see this in the server.go from in the go env
-    pub url: String,
-}
-
 //const CODE_PATH: &str = "/userfunc/user";
 pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
+pub fn specializer(data: Data<Mutex<HandlerState>>, code_path: &str, handler_name: &str) -> HttpResponse {
+    let handler_state = data.lock().unwrap();
+    let mut user_func_lib = handler_state.lib.as_ref();
+
+    match user_func_lib {
+        Some(_) => {
+            drop(handler_state);
+            HttpResponse::BadRequest().body("Not a generic container")
+        },
+        None => {
+            drop(handler_state);
+            let path = Path::new(code_path);
+            if !path.exists() {
+                error!("code path ({}) does not exist", code_path);
+                return HttpResponse::InternalServerError().body(format!("{} not found", code_path))
+            }
+            info!("specializing ...");
+            load_plugin(&path, "handler", data);
+            HttpResponse::Ok().body("Plugin Loaded")
+        },
+    }
+}
+
 //Todo: Return http response for error cases or done
-pub fn load_plugin(code_path: &Path, entry_point: &str, data: actix_web::web::Data<Mutex<HandlerState>>) {
+fn load_plugin(code_path: &Path, entry_point: &str, data: actix_web::web::Data<Mutex<HandlerState>>) {
     if code_path.is_dir() {
         //Todo: 1. swtich from Option to Result
         //Todo: 2. use a reference for OsString
