@@ -1,12 +1,14 @@
 use std::path::Path;
 use std::sync::{LockResult, Mutex, MutexGuard, PoisonError};
-use actix_web::{HttpRequest, HttpResponse, get, Responder};
+use actix_web::{HttpRequest, HttpResponse, get, post, Responder, web};
+use actix_web::body::Body;
 use actix_web::guard::Guard;
 use actix_web::http::StatusCode;
+use actix_web::web::Bytes;
 use libloading::{Library, Symbol};
-use crate::{HandlerFunc, panic};
-use crate::server::{CODE_PATH, load_plugin};
-
+use serde_json::Value;
+use crate::{HandlerFunc, panic, server};
+use crate::server::{CODE_PATH, FunctionLoadRequest, load_plugin};
 
 pub struct HandlerState {
     pub lib: Option<Library>,
@@ -46,7 +48,7 @@ pub async fn user_handler(data: actix_web::web::Data<Mutex<HandlerState>>, req: 
                 match result {
                     Ok(symbol) => symbol(req),
                     //Todo: Return what fission here expect.
-                    Err(e) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
+                    Err(_) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
                 }
             }
         }
@@ -78,6 +80,40 @@ pub async fn specialize_handler(data: actix_web::web::Data<Mutex<HandlerState>>)
             }
             info!("specializing ...");
             load_plugin(&path, "handler", data);
+            HttpResponse::Ok().body("Plugin Loaded")
+
+        },
+
+    }
+}
+
+#[get("/v2/specialize")]
+pub async fn specialize_handler_v2(data: actix_web::web::Data<Mutex<HandlerState>>, function_load_request: web::Json<FunctionLoadRequest>) -> impl Responder {
+
+    let handler_state= data.lock().unwrap();
+    let mut user_func_lib = handler_state.lib.as_ref();
+
+    match user_func_lib {
+        Some(_) => {
+            drop(handler_state);
+            HttpResponse::BadRequest().body("Not a generic container")
+        },
+        None => {
+            drop(handler_state);
+            let path = Path::new(&function_load_request.file_path);
+            if !path.exists() {
+                error!("code path ({}) does not exist", CODE_PATH);
+                return HttpResponse::InternalServerError()
+                    .body(format!("{} not found", CODE_PATH))
+            }
+            info!("specializing ...");
+
+            load_plugin(
+                &path,
+                function_load_request.function_name.as_str(),
+                data
+            );
+
             HttpResponse::Ok().body("Plugin Loaded")
 
         },

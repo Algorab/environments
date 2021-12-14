@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
@@ -8,27 +7,30 @@ use std::sync::{Mutex, MutexGuard};
 use actix_web::{get, HttpRequest, HttpResponse, Responder, web};
 use actix_web::http::StatusCode;
 use libloading::{Library, Symbol};
-use log::{error, info};
+use log::{info};
 
 use crate::HandlerState;
 
 pub type HandlerFunc = unsafe fn(HttpRequest) -> HttpResponse;
 
-#[derive(Serialize, Deserialize)]
-struct FunctionLoadRequest {
+//Todo: put FunctionLoadRequest to the request_handlers
+#[derive(Deserialize, Debug)]
+pub struct FunctionLoadRequest {
     #[serde(alias = "filepath")]
-    file_path: String,
+    pub file_path: String,
 
     #[serde(alias = "functionName")]
-    function_name: String,
+    pub function_name: String,
 
-    url: String,
+    //currently not use. I see this in the server.go from in the go env
+    pub url: String,
 }
 
 //const CODE_PATH: &str = "/userfunc/user";
 pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
+//Todo: Return http response for error cases or done
 pub fn load_plugin(code_path: &Path, entry_point: &str, data: actix_web::web::Data<Mutex<HandlerState>>) {
     if code_path.is_dir() {
         //Todo: 1. swtich from Option to Result
