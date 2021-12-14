@@ -7,15 +7,10 @@ mod panic;
 #[macro_use]
 extern crate log;
 
-
-use std::fmt::Pointer;
-use std::ops::Add;
 use std::sync::Mutex;
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, web, get};
-use actix_web::body::Body;
-use env_logger::{Env, Logger};
+use actix_web::{App, HttpServer, web};
 use server::{HandlerFunc};
-use crate::requst_handler::{HandlerState, user_handler};
+use crate::requst_handler::{HandlerState};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

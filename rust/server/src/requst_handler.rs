@@ -1,12 +1,6 @@
-use std::path::Path;
-use std::sync::{LockResult, Mutex, MutexGuard, PoisonError};
-use actix_web::{HttpRequest, HttpResponse, get, post, Responder, web};
-use actix_web::body::Body;
-use actix_web::guard::Guard;
-use actix_web::http::StatusCode;
-use actix_web::web::{Bytes, Data};
-use libloading::{Library, Symbol};
-use serde_json::Value;
+use std::sync::Mutex;
+use actix_web::{HttpRequest, HttpResponse, get, Responder, web};
+use libloading::{Library};
 use crate::{HandlerFunc, panic, server};
 use crate::server::{CODE_PATH};
 
@@ -59,7 +53,6 @@ pub async fn user_handler(data: actix_web::web::Data<Mutex<HandlerState>>, req: 
 
                 match result {
                     Ok(symbol) => symbol(req),
-                    //Todo: Return what fission here expect.
                     Err(_) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
                 }
             }
