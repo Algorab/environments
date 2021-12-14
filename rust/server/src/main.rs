@@ -20,9 +20,13 @@ async fn main() -> std::io::Result<()> {
 
     env_logger::init();
 
-    HttpServer::new(|| {
+    #[allow(clippy::mutex_atomic)]
+    let handler_state = web::Data::new(Mutex::new(HandlerState::new()));
+
+
+    HttpServer::new(move || {
         App::new()
-            .data(HandlerState::new())
+            .app_data(handler_state.clone())
             .service(requst_handler::readiness_probe_handler)
             .service(requst_handler::specialize_handler)
             .service(requst_handler::user_handler)

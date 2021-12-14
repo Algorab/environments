@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
@@ -28,7 +29,7 @@ struct FunctionLoadRequest {
 pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
-pub fn load_plugin(code_path: &Path, entry_point: &str, handler_state: &web::Data<HandlerState>) {
+pub fn load_plugin(code_path: &Path, entry_point: &str, data: actix_web::web::Data<Mutex<HandlerState>>) {
     if code_path.is_dir() {
         //Todo: 1. swtich from Option to Result
         //Todo: 2. use a reference for OsString
@@ -65,8 +66,7 @@ pub fn load_plugin(code_path: &Path, entry_point: &str, handler_state: &web::Dat
             }
         };
 
-        let mut app_user_lib: MutexGuard<Option<Library>> = handler_state.lib.lock().unwrap();
-        let mut app_user_entry_point = handler_state.entry_point.lock().unwrap();
+        let mut handler_state = data.lock().unwrap();
 
         match lib_path {
             Some(plugin) => {
@@ -74,14 +74,15 @@ pub fn load_plugin(code_path: &Path, entry_point: &str, handler_state: &web::Dat
                 unsafe {
                     let lib = Library::new(plugin).unwrap();
 
-                    *app_user_entry_point = String::from(entry_point);
-                    *app_user_lib = Some(lib);
+                    (*handler_state).entry_point = entry_point.to_string();
+                    (*handler_state).lib = Some(lib);
                 }
             },
             None => {
                 error!("no library to load found");
             }
         }
+        drop(handler_state);
     } else {
         error!("error checking plugin path: {}", code_path.to_str().unwrap());
     }

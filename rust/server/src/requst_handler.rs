@@ -1,6 +1,7 @@
 use std::path::Path;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{LockResult, Mutex, MutexGuard, PoisonError};
 use actix_web::{HttpRequest, HttpResponse, get, Responder};
+use actix_web::guard::Guard;
 use actix_web::http::StatusCode;
 use libloading::{Library, Symbol};
 use crate::{HandlerFunc, panic};
@@ -8,33 +9,39 @@ use crate::server::{CODE_PATH, load_plugin};
 
 
 pub struct HandlerState {
-    pub lib: Mutex<Option<Library>>,
-    pub entry_point: Mutex<String>,
+    pub lib: Option<Library>,
+    pub entry_point: String,
 }
 
 impl HandlerState {
 
     pub fn new() -> Self{
         Self {
-            lib: Mutex::new(None),
-            entry_point: Mutex::new(String::from(""))
+            lib: None,
+            entry_point: String::from("")
         }
     }
 
 }
 
 #[get("/")]
-pub async fn user_handler(data: actix_web::web::Data<HandlerState>, req: HttpRequest) -> HttpResponse {
+pub async fn user_handler(data: actix_web::web::Data<Mutex<HandlerState>>, req: HttpRequest) -> HttpResponse {
 
-    let lib = data.lib.lock().unwrap(); // <- get counter's MutexGuard
-    let entry_point = data.entry_point.lock().unwrap();
+    let lock: LockResult<MutexGuard<HandlerState>> = data.lock();
+    match lock {
+        Ok(g) => println!("guard"),
+        Err(e) => println!("poison error: {:?}", e)
+    }
+
+    let handler_state = data.lock().unwrap();
+    let lib = handler_state.lib.as_ref().unwrap();
+    let entry_point = &handler_state.entry_point;
 
     unsafe {
 
         println!("entrypoint: {}", entry_point);
         let result = panic::catch_unwind_silent(||{
-            let o = lib.as_ref().unwrap();
-            o.get::<HandlerFunc>(&*entry_point.as_bytes()).unwrap()
+            lib.get::<HandlerFunc>(&*entry_point.as_bytes()).unwrap()
         });
 
         match result {
@@ -51,26 +58,26 @@ pub async fn readiness_probe_handler() -> impl Responder {
 }
 
 #[get("/specialize")]
-pub async fn specialize_handler(handler_state: actix_web::web::Data<HandlerState>) -> impl Responder {
+pub async fn specialize_handler<'handler_state>(data: actix_web::web::Data<Mutex<HandlerState>>) -> impl Responder {
 
-    let mut user_func_lib: MutexGuard<Option<Library>> = handler_state.lib.lock().unwrap();
+    let handler_state= data.lock().unwrap();
+    let mut user_func_lib = handler_state.lib.as_ref();
 
-    match *user_func_lib {
+    match user_func_lib {
         Some(_) => {
-            drop(user_func_lib);
+            drop(handler_state);
             HttpResponse::BadRequest().body("Not a generic container")
         },
         None => {
-            drop(user_func_lib);
+            drop(handler_state);
             let path = Path::new(CODE_PATH);
             if !path.exists() {
                 error!("code path ({}) does not exist", CODE_PATH);
                 return HttpResponse::InternalServerError().body(format!("{} not found", CODE_PATH))
             }
             info!("specializing ...");
-            load_plugin(&path, "handler", &handler_state);
+            load_plugin(&path, "handler", data);
             HttpResponse::Ok().body("Plugin Loaded")
-
 
         },
 
