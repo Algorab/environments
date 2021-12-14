@@ -36,24 +36,3 @@ async fn main() -> std::io::Result<()> {
         .run()
         .await
 }
-
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//
-//     let state = web::Data::new(HandlerState {
-//         user_func: Mutex::new(Some(|req|{
-//             HttpResponse::Ok().body("Hello")
-//         })),
-//     });
-//
-//     HttpServer::new(move || {
-//         // move counter into the closure
-//         App::new()
-//             // Note: using app_data instead of data
-//             .app_data(state.clone()) // <- register the created data
-//             .service(user_handler)
-//     })
-//         .bind("127.0.0.1:8888")?
-//         .run()
-//         .await
-// }

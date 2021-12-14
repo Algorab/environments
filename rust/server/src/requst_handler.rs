@@ -27,27 +27,28 @@ impl HandlerState {
 #[get("/")]
 pub async fn user_handler(data: actix_web::web::Data<Mutex<HandlerState>>, req: HttpRequest) -> HttpResponse {
 
-    let lock: LockResult<MutexGuard<HandlerState>> = data.lock();
-    match lock {
-        Ok(g) => println!("guard"),
-        Err(e) => println!("poison error: {:?}", e)
-    }
-
     let handler_state = data.lock().unwrap();
-    let lib = handler_state.lib.as_ref().unwrap();
-    let entry_point = &handler_state.entry_point;
 
-    unsafe {
-
-        println!("entrypoint: {}", entry_point);
-        let result = panic::catch_unwind_silent(||{
-            lib.get::<HandlerFunc>(&*entry_point.as_bytes()).unwrap()
-        });
-
-        match result {
-            Ok(symbol) => symbol(req),
+    match handler_state.lib.as_ref() {
+        None => {
             //Todo: Return what fission here expect.
-            Err(e) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
+            error!("library not loaded");
+            HttpResponse::BadRequest().body("not specialized")
+        },
+        Some(lib) => {
+
+            let entry_point = &handler_state.entry_point;
+            unsafe {
+                let result = panic::catch_unwind_silent(||{
+                    lib.get::<HandlerFunc>(&*entry_point.as_bytes()).unwrap()
+                });
+
+                match result {
+                    Ok(symbol) => symbol(req),
+                    //Todo: Return what fission here expect.
+                    Err(e) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
+                }
+            }
         }
     }
 
