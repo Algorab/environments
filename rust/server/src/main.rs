@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
             .service(requst_handler::specialize_handler_v2)
             .service(requst_handler::user_handler)
     })
-        .bind("127.0.0.1:8888")?
+        .bind("0.0.0.0:8888")?
         .run()
         .await
 }
