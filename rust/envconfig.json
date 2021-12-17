@@ -1,0 +1,57 @@
+[
+  {
+    "builder": "rust-builder-1.57",
+    "examples": "https://github.com/fission/environments/tree/master/rust/examples",
+    "icon": "./logo/rust.svg",
+    "image": "rust-env-1.57",
+    "kind": "environment",
+    "maintainers": [
+      {
+        "link": "https://github.com/sanketsudake",
+        "name": "sanketsudake"
+      },
+      {
+        "link": "https://github.com/vishal-biyani",
+        "name": "vishal-biyani"
+      },
+      {
+        "link": "https://github.com/algorab",
+        "name": "algorab"
+      }
+    ],
+    "name": "Rust Environment",
+    "readme": "https://github.com/fission/environments/tree/master/rust",
+    "runtimeVersion": "1.57",
+    "shortDescription": "Fission Rust 1.57 environment, which uses dynamic loader based on c dylib.",
+    "status": "Beta",
+    "version": "0.0.1"
+  },
+  {
+    "builder": "rust-builder",
+    "examples": "https://github.com/fission/environments/tree/master/rust/examples",
+    "icon": "./logo/rust.svg",
+    "image": "rust-env",
+    "keywords": [],
+    "kind": "environment",
+    "maintainers": [
+      {
+        "link": "https://github.com/sanketsudake",
+        "name": "sanketsudake"
+      },
+      {
+        "link": "https://github.com/vishal-biyani",
+        "name": "vishal-biyani"
+      },
+      {
+        "link": "https://github.com/algorab",
+        "name": "algorab"
+      }
+    ],
+    "name": "rust Environment",
+    "readme": "https://github.com/fission/environments/tree/master/rust",
+    "runtimeVersion": "1.57",
+    "shortDescription": "Fission Rust environment hosts Rust 1.57, which uses dynamic loader based on c dylib.",
+    "status": "Beta",
+    "version": "0.0.1"
+  }
+]

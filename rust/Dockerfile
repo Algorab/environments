@@ -1,5 +1,5 @@
-ARG RUST_VERSION=1.57
-ARG ALPINE_VERSION=3.14
+ARG RUST_VERSION
+ARG ALPINE_VERSION
 
 FROM rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS builder
 RUN apk --no-cache add ca-certificates musl-dev && \
