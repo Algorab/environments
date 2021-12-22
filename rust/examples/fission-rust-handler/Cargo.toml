@@ -9,4 +9,4 @@ edition = "2021"
 actix-web = "3.3.2"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["dylib"]

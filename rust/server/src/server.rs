@@ -11,10 +11,10 @@ use log::info;
 
 use crate::{HandlerState};
 
-pub type HandlerFunc = unsafe fn(HttpRequest) -> HttpResponse;
+pub type HandlerFunc = unsafe fn(Box<HttpRequest>) -> Box<HttpResponse>;
 
 pub const CODE_PATH: &str = "/userfunc/user";
-//pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
+//pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-environments/rust/examples/fission-rust-handler/target/release";
 
 
 pub fn specializer(data: Data<Mutex<HandlerState>>, code_path: &str, handler_name: &str) -> HttpResponse {

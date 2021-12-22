@@ -52,7 +52,7 @@ pub async fn user_handler(data: actix_web::web::Data<Mutex<HandlerState>>, req: 
                 });
 
                 match result {
-                    Ok(symbol) => symbol(req),
+                    Ok(symbol) => *symbol(Box::new(req)),
                     Err(_) => HttpResponse::InternalServerError().body(format!("handler:{} not available", *entry_point))
                 }
             }
