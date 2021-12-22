@@ -15,7 +15,7 @@ use crate::requst_handler::{HandlerState};
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
-    std::env::set_var("RUST_LOG", "actix_web=trace");
+    std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
 
     #[allow(clippy::mutex_atomic)]

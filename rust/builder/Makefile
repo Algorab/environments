@@ -1,6 +1,6 @@
 -include ../../rules.mk
 
-PLATFORMS = linux/amd64,linux/arm64/v8
+PLATFORMS = linux/amd64#,linux/arm64/v8
 REPO = glutamat
 
 .PHONY: all

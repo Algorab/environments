@@ -13,8 +13,8 @@ use crate::{HandlerState};
 
 pub type HandlerFunc = unsafe fn(HttpRequest) -> HttpResponse;
 
-//const CODE_PATH: &str = "/userfunc/user";
-pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
+pub const CODE_PATH: &str = "/userfunc/user";
+//pub const CODE_PATH: &str = "/home/stefan/workspace/kubernetes/fission-rust-handler/target/debug/lib";
 
 
 pub fn specializer(data: Data<Mutex<HandlerState>>, code_path: &str, handler_name: &str) -> HttpResponse {
